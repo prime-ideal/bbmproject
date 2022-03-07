@@ -19,17 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="deal_with_input.cpp" />
-    <ClCompile Include="map.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="mob.cpp" />
-    <ClCompile Include="other_func.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="deal_with_input.h" />
-    <ClInclude Include="other_func.h" />
-    <ClInclude Include="map.h" />
-    <ClInclude Include="mob.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
