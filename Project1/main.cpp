@@ -15,7 +15,7 @@ clock_t clocktime;
 char** mpt = 0, **ppt;
 float VELOCITY = 0.5;
 const int MAX_LEVEL = 2;
-
+const int DEFAULTHP = 1000;
 
 class map
 {
@@ -50,12 +50,13 @@ private:
 	int hp;
 	int power;
 public:
+	friend void trykill(mob&, int, int);
 	friend void init(map&);
 	friend void display();
 	friend void setbomb(mob&);
 	mob(int x, int y) : posx(x), posy(y),
 		speed(VELOCITY), remainx(0), remainy(0), 
-		hp(1000), power(1) {}
+		hp(DEFAULTHP), power(2) {}
 	mob() : posx(0), posy(0) {}
 	bool move_up(float);
 	bool move_left(float);
@@ -69,13 +70,14 @@ private:
 	int triggertime;
 public:
 	friend void setbomb(mob&);
+	friend void explode(const bomb&);
 	bool operator<(const bomb& a) const{
 		return this->triggertime > a.triggertime; //Ð¡¶¥¶Ñ
 	}
+	int usetime() const{ return triggertime; }
 	bomb(int x, int y, int p, int t) :
 		posx(x), posy(y), power(p), triggertime(t) {}
 };
-
 priority_queue<bomb>eventlist;
 
 
@@ -83,6 +85,7 @@ void init(map&);
 void display();
 inline bool check(char ch);
 void deal_with_input();
+void explode(const bomb& gamebomb);
 map gamemap(-1);
 mob player1(0,0), player2(0,0), 
 	mob1(0,0), mob2(0,0);
@@ -103,7 +106,12 @@ int main()
 		clocktime = clock();
 		deal_with_input();
 		display();
-		while (clock() - clocktime <= TICK*2);
+		
+		while (!eventlist.empty() && eventlist.top().usetime() <= cnt) {
+			explode(eventlist.top());
+			eventlist.pop();
+		}
+		while (clock() - clocktime <= TICK);
 		++cnt;
 	}
 	return 0;
@@ -148,9 +156,13 @@ void init(map& gamemap)
 void display()
 {
 	system("cls");
+	if (mob2.hp >= 0)
 	ppt[mob2.posx][mob2.posy] = mob2.name;
+	if (mob1.hp >= 0)
 	ppt[mob1.posx][mob1.posy] = mob1.name;
+	if (player2.hp >= 0)
 	ppt[player2.posx][player2.posy] = player2.name;
+	if (player1.hp >= 0)
 	ppt[player1.posx][player1.posy] = player1.name;
 	for (int i = 1; i <= gamemap.userow(); ++i) {
 		for (int j = 1; j <= gamemap.usecol(); ++j) {
@@ -267,5 +279,53 @@ void setbomb(mob& gamemob)
 	int x = gamemob.posx,
 		y = gamemob.posy;
 	mpt[x][y] = 'o';
-	eventlist.push(bomb(x, y, gamemob.power, cnt + 3 * 20 * TICK));
+	eventlist.push(bomb(x, y, gamemob.power, cnt + 3 * 20));
+}
+void explode(const bomb& gamebomb) 
+{
+	int const power = gamebomb.power,
+		const x = gamebomb.posx,
+		const y = gamebomb.posy;
+	if (power > 0) {
+		mpt[x][y] = ' ';
+		for (int i = x; i > 0 && i > x - power; --i) {
+			if (!check(mpt[i][y])) break;
+			trykill(player1, i, y);
+			trykill(player2, i, y);
+			trykill(mob1, i, y);
+			trykill(mob2, i, y);
+		}
+		for (int i = x; i <= gamemap.userow() && i < x + power; ++i) {
+			if (!check(mpt[i][y])) break;
+			trykill(player1, i, y);
+			trykill(player2, i, y);
+			trykill(mob1, i, y);
+			trykill(mob2, i, y);
+		}
+		for (int i = y; i > 0 && i > y - power; --i) {
+			if (!check(mpt[x][i])) break;
+			trykill(player1, x, i);
+			trykill(player2, x, i);
+			trykill(mob1, x, i);
+			trykill(mob2, x, i);
+		}
+		for (int i = y; i < gamemap.usecol() && i < y + power; ++i) {
+			if (!check(mpt[x][i])) break;
+			trykill(player1, x, i);
+			trykill(player2, x, i);
+			trykill(mob1, x, i);
+			trykill(mob2, x, i);
+		}
+	}
+}
+void trykill(mob& gamemob, int x, int y) {
+	if (gamemob.posx == x && gamemob.posy == y) {
+		gamemob.hp -= DEFAULTHP;
+		if (gamemob.hp <= 0) {
+			gamemob.hp = -1;
+			ppt[gamemob.posx][gamemob.posy] = 0;
+			gamemob.posx = 0;
+			gamemob.posy = 0;
+		}
+	}
 }
