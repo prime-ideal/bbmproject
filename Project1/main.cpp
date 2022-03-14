@@ -16,10 +16,11 @@ clock_t clocktime;
 char** mpt = 0, **ppt;
 float VELOCITY = 0.5;
 const int MAX_LEVEL = 2;
-const int DEFAULTHP = 1000;
-const float BONUS_P = 0.2;
-const float SPEEDUP_P = 0.5;
-const float POWERUP_P = 0.5;
+const int DEFAULTHP = 1000;//扣血
+const float BONUS_P = 1;//出道具概率
+const float SPEEDUP_P = 0.5;//道具加速概率
+const float POWERUP_P = 0.5;//道具炸弹增幅概率
+const int effect_ticks = 20 * 20;
 
 class map
 {
@@ -53,36 +54,43 @@ private:
 	float speed, remainx, remainy;
 	int hp;
 	int power;
+	long long speedtime, powertime;
 public:
 	friend void trykill(mob& gamemob, int x, int y);
 	friend void init(map&);
 	friend void display();
-	friend void setbomb(mob&);
+	friend void setbomb(mob*);
 	mob(int x, int y) : posx(x), posy(y),
 		speed(VELOCITY), remainx(0), remainy(0), 
-		hp(DEFAULTHP), power(2) {}
+		hp(DEFAULTHP), power(2), speedtime(0), powertime(0) {}
 	mob() : posx(0), posy(0) {}
-	bool move_up(float);
-	bool move_left(float);
-	bool move_down(float);
-	bool move_right(float);
+	long long usespeedtime() const { return speedtime; }
+	long long usepowertime() const { return powertime; }
+	void setpower(int x) { power = x; }
+	void setspeed(float x) { speed = x; }
+	void sethp(int x) { hp = x; }
+	bool move_up();
+	bool move_left();
+	bool move_down();
+	bool move_right();
 };
 class bomb {
 private:
 	int posx, posy;
 	int power;
-	int triggertime;
-	mob* player;
+	long long triggertime;
+	mob* playerpt;
 public:
-	friend void setbomb(mob&);
+	friend void setbomb(mob*);
 	friend void explode(const bomb&);
 	bool operator<(const bomb& a) const{
 		return this->triggertime > a.triggertime; //小顶堆
 	}
 	int usetime() const{ return triggertime; }
 	int usepower() const { return power; }
-	bomb(int x, int y, int p, int t) :
-		posx(x), posy(y), power(p), triggertime(t) {}
+	mob* usemobpt() const { return playerpt; }
+	bomb(mob* plerpt, int x, int y, int p, long long t) :
+		posx(x), posy(y), power(p), triggertime(t), playerpt(plerpt) {}
 };
 priority_queue<bomb>eventlist;
 
@@ -117,10 +125,15 @@ int main()
 		while (!eventlist.empty() && eventlist.top().usetime() <= cnt) {
 			if (eventlist.top().usepower() > 0)
 				explode(eventlist.top());
-			else if (eventlist.top().usepower() == -1);
+			else if (eventlist.top().usepower() == -1 && 
+				eventlist.top().usetime() >= eventlist.top().usemobpt()->usespeedtime()) {
+				eventlist.top().usemobpt()->setspeed(VELOCITY);
 
-			else if (eventlist.top().usepower() == -2);
-
+			}
+			else if (eventlist.top().usepower() == -2 &&
+				eventlist.top().usetime() >= eventlist.top().usemobpt()->usepowertime()) {
+				eventlist.top().usemobpt()->setpower(2);
+			}
 			eventlist.pop();
 		}
 		while (clock() - clocktime <= TICK);
@@ -185,94 +198,175 @@ void display()
 		}
 		cout << std::endl;
 	}
+	cout << std::endl;
+	if (player1.hp > 0) {
+		cout << "玩家A" << " 血量:" << player1.hp;
+		if (player1.speedtime > cnt)
+			cout << "  速度提升";
+		if (player1.powertime > cnt)
+			cout << "  爆炸增幅";
+	}
+	else
+		cout << "玩家A RIP";
+	cout << std::endl;
+	if (player2.hp > 0) {
+		cout << "玩家B" << " 血量:" << player2.hp;
+		if (player2.speedtime > cnt)
+			cout << "  速度提升";
+		if (player2.powertime > cnt)
+			cout << "  爆炸增幅";
+	}
+	else
+		cout << "玩家B RIP";
 }
 
-//rewrite
 void deal_with_input()
 {
 	char ch;
 	if (_kbhit()) {
 		if (GetAsyncKeyState('W'))
-			player1.move_up(VELOCITY);
+			player1.move_up();
 		if (GetAsyncKeyState('A'))
-			player1.move_left(VELOCITY);
+			player1.move_left();
 		if (GetAsyncKeyState('S'))
-			player1.move_down(VELOCITY);
+			player1.move_down();
 		if (GetAsyncKeyState('D'))
-			player1.move_right(VELOCITY);
+			player1.move_right();
 		if (GetAsyncKeyState('I'))
-			player2.move_up(VELOCITY);
+			player2.move_up();
 		if (GetAsyncKeyState('J'))
-			player2.move_left(VELOCITY);
+			player2.move_left();
 		if (GetAsyncKeyState('K'))
-			player2.move_down(VELOCITY);
+			player2.move_down();
 		if (GetAsyncKeyState('L'))
-			player2.move_right(VELOCITY);
+			player2.move_right();
 		if (GetAsyncKeyState(VK_SPACE))
-			setbomb(player1);
+			setbomb(&player1);
 		if (GetAsyncKeyState(VK_RETURN))
-			setbomb(player2);
+			setbomb(&player2);
 	}
 }
-bool mob::move_up(float sp)
+bool mob::move_up()
 {
 	if (hp <= 0) return 0;
-	remainx -= sp;
+	remainx -= speed;
 	if (remainx > -1) return true;
 	remainx += 1;
-	if (check(mpt[posx - 1][posy])) {
+	if (check(mpt[posx - 1][posy]) && mpt[posx - 1][posy] != '?') {
 		ppt[posx][posy] = 0;
 		--posx;
 		ppt[posx][posy] = name;
 		return 1;
 	}
 	else if (mpt[posx - 1][posy] == '?') {
-
+		if ((rand() % 100) / 100.0 < SPEEDUP_P) {
+			speed = VELOCITY * 1.5;
+			eventlist.push(bomb(this, 0, 0, -1, cnt + effect_ticks));
+			speedtime = cnt + effect_ticks;
+		}
+		else if ((rand() % 100) / 100.0 < (1 - SPEEDUP_P) / POWERUP_P) {
+			power = 3;
+			eventlist.push(bomb(this, 0, 0, -2, cnt + effect_ticks));
+			powertime = cnt + effect_ticks;
+		}
 		ppt[posx][posy] = 0;
 		--posx;
 		ppt[posx][posy] = name;
+		mpt[posx][posy] = ' ';
 		return 1;
 	}
 	else return 0;
 }
-bool mob::move_left(float sp)
+bool mob::move_left()
 {
 	if (hp <= 0) return 0;
-	remainy -= sp;
+	remainy -= speed;
 	if (remainy > -1) return true;
 	remainy += 1;
-	if (check(mpt[posx][posy - 1])) {
+	if (check(mpt[posx][posy - 1]) && mpt[posx][posy - 1] != '?') {
 		ppt[posx][posy] = 0;
 		--posy;
 		ppt[posx][posy] = name;
 		return 1;
 	}
+	else if (mpt[posx][posy - 1] == '?') {
+		if ((rand() % 100) / 100.0 < SPEEDUP_P) {
+			speed = VELOCITY * 1.5;
+			eventlist.push(bomb(this, 0, 0, -1, cnt + effect_ticks));
+			speedtime = cnt + effect_ticks;
+		}
+		else if ((rand() % 100) / 100.0 < (1 - SPEEDUP_P) / POWERUP_P) {
+			power = 3;
+			eventlist.push(bomb(this, 0, 0, -2, cnt + effect_ticks));
+			powertime = cnt + effect_ticks;
+		}
+		ppt[posx][posy] = 0;
+		--posy;
+		ppt[posx][posy] = name;
+		mpt[posx][posy] = ' ';
+		return 1;
+	}
 	else return 0;
 }
-bool mob::move_down(float sp)
+//rewrite
+bool mob::move_down()
 {
 	if (hp <= 0) return 0;
-	remainx += sp;
+	remainx += speed;
 	if (remainx < 1) return true;
 	remainx -= 1;
-	if (check(mpt[posx + 1][posy])) {
+	if (check(mpt[posx + 1][posy]) && mpt[posx + 1][posy] != '?') {
 		ppt[posx][posy] = 0;
 		++posx;
 		ppt[posx][posy] = name;
 		return 1;
 	}
+	else if (mpt[posx + 1][posy] == '?') {
+		if ((rand() % 100) / 100.0 < SPEEDUP_P) {
+			speed = VELOCITY * 1.5;
+			eventlist.push(bomb(this, 0, 0, -1, cnt + effect_ticks));
+			speedtime = cnt + effect_ticks;
+		}
+		else if ((rand() % 100) / 100.0 < (1 - SPEEDUP_P) / POWERUP_P) {
+			power = 3;
+			eventlist.push(bomb(this, 0, 0, -2, cnt + effect_ticks));
+			powertime = cnt + effect_ticks;
+		}
+		ppt[posx][posy] = 0;
+		++posx;
+		ppt[posx][posy] = name;
+		mpt[posx][posy] = ' ';
+		return 1;
+	}
 	else return 0;
 }
-bool mob::move_right(float sp)
+bool mob::move_right()
 {
 	if (hp <= 0) return 0;
-	remainy += sp;
+	remainy += speed;
 	if (remainy < 1) return true;
 	remainy -= 1;
-	if (check(mpt[posx][posy + 1])) {
+	if (check(mpt[posx][posy + 1]) && mpt[posx][posy + 1] != '?') {
 		ppt[posx][posy] = 0;
 		++posy;
 		ppt[posx][posy] = name;
+		return 1;
+	}
+	else if (mpt[posx][posy + 1] == '?') {
+		if ((rand() % 100) / 100.0 < SPEEDUP_P) {
+			speed = VELOCITY * 1.5;
+			eventlist.push(bomb(this, 0, 0, -1, cnt + effect_ticks));
+			speedtime = cnt + effect_ticks;
+		}
+		else if ((rand() % 100) / 100.0 < (1 - SPEEDUP_P) / POWERUP_P) {
+			power = 3;
+			eventlist.push(bomb(this, 0, 0, -2, cnt + effect_ticks));
+			powertime = cnt + effect_ticks;
+		}
+		ppt[posx][posy] = 0;
+		++posy;
+		ppt[posx][posy] = name;
+		mpt[posx][posy] = ' ';
 		return 1;
 	}
 	else return 0;
@@ -282,12 +376,12 @@ inline bool check(char ch) {
 		return 0;
 	return 1;
 }
-void setbomb(mob& gamemob)
+void setbomb(mob* gamemob)
 {
-	int x = gamemob.posx,
-		y = gamemob.posy;
+	int x = gamemob->posx,
+		y = gamemob->posy;
 	mpt[x][y] = 'o';
-	eventlist.push(bomb(x, y, gamemob.power, cnt + 3 * 20));
+	eventlist.push(bomb(gamemob, x, y, gamemob->power, cnt + 3 * 20));
 }
 void explode(const bomb& gamebomb) 
 {
