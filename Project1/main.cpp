@@ -4,6 +4,7 @@
 #include <ctime>
 #include <queue>
 #include <vector>
+#include <Windows.h>
 using std::cin;
 using std::cout;
 using std::priority_queue;
@@ -16,6 +17,9 @@ char** mpt = 0, **ppt;
 float VELOCITY = 0.5;
 const int MAX_LEVEL = 2;
 const int DEFAULTHP = 1000;
+const float BONUS_P = 0.2;
+const float SPEEDUP_P = 0.5;
+const float POWERUP_P = 0.5;
 
 class map
 {
@@ -50,7 +54,7 @@ private:
 	int hp;
 	int power;
 public:
-	friend void trykill(mob&, int, int);
+	friend void trykill(mob& gamemob, int x, int y);
 	friend void init(map&);
 	friend void display();
 	friend void setbomb(mob&);
@@ -68,6 +72,7 @@ private:
 	int posx, posy;
 	int power;
 	int triggertime;
+	mob* player;
 public:
 	friend void setbomb(mob&);
 	friend void explode(const bomb&);
@@ -75,6 +80,7 @@ public:
 		return this->triggertime > a.triggertime; //小顶堆
 	}
 	int usetime() const{ return triggertime; }
+	int usepower() const { return power; }
 	bomb(int x, int y, int p, int t) :
 		posx(x), posy(y), power(p), triggertime(t) {}
 };
@@ -93,12 +99,14 @@ mob player1(0,0), player2(0,0),
 
 int main()
 {
-	int lev;
+	srand(clock());
+	/*int lev;
 	cout << "请输入关卡数：\n";
 	cin >> lev;
 	if (lev > MAX_LEVEL || lev <= 0)
 		lev = 1;
-	gamemap = map(lev);
+	*/
+	gamemap = map(2);
 	init(gamemap);
 	display();
 	while (1)
@@ -106,9 +114,13 @@ int main()
 		clocktime = clock();
 		deal_with_input();
 		display();
-		
 		while (!eventlist.empty() && eventlist.top().usetime() <= cnt) {
-			explode(eventlist.top());
+			if (eventlist.top().usepower() > 0)
+				explode(eventlist.top());
+			else if (eventlist.top().usepower() == -1);
+
+			else if (eventlist.top().usepower() == -2);
+
 			eventlist.pop();
 		}
 		while (clock() - clocktime <= TICK);
@@ -174,43 +186,32 @@ void display()
 		cout << std::endl;
 	}
 }
+
+//rewrite
 void deal_with_input()
 {
 	char ch;
 	if (_kbhit()) {
-		ch = _getch();
-		switch (ch) {
-		case 'w':
+		if (GetAsyncKeyState('W'))
 			player1.move_up(VELOCITY);
-			break;
-		case 'a':
+		if (GetAsyncKeyState('A'))
 			player1.move_left(VELOCITY);
-			break;
-		case 's':
+		if (GetAsyncKeyState('S'))
 			player1.move_down(VELOCITY);
-			break;
-		case 'd':
+		if (GetAsyncKeyState('D'))
 			player1.move_right(VELOCITY);
-			break;
-		case 'i':
+		if (GetAsyncKeyState('I'))
 			player2.move_up(VELOCITY);
-			break;
-		case 'j':
+		if (GetAsyncKeyState('J'))
 			player2.move_left(VELOCITY);
-			break;
-		case 'k':
+		if (GetAsyncKeyState('K'))
 			player2.move_down(VELOCITY);
-			break;
-		case 'l':
+		if (GetAsyncKeyState('L'))
 			player2.move_right(VELOCITY);
-			break;
-		case ' ':
+		if (GetAsyncKeyState(VK_SPACE))
 			setbomb(player1);
-			break;
-		case 0x0D:
+		if (GetAsyncKeyState(VK_RETURN))
 			setbomb(player2);
-			break;
-		}
 	}
 }
 bool mob::move_up(float sp)
@@ -220,6 +221,13 @@ bool mob::move_up(float sp)
 	if (remainx > -1) return true;
 	remainx += 1;
 	if (check(mpt[posx - 1][posy])) {
+		ppt[posx][posy] = 0;
+		--posx;
+		ppt[posx][posy] = name;
+		return 1;
+	}
+	else if (mpt[posx - 1][posy] == '?') {
+
 		ppt[posx][posy] = 0;
 		--posx;
 		ppt[posx][posy] = name;
@@ -289,28 +297,52 @@ void explode(const bomb& gamebomb)
 	if (power > 0) {
 		mpt[x][y] = ' ';
 		for (int i = x; i > 0 && i > x - power; --i) {
-			if (!check(mpt[i][y])) break;
+			if (mpt[i][y] != '*' && !check(mpt[i][y])) break;
+			if (mpt[i][y] == '*'){
+				if ((rand() % 100) / 100.0 < BONUS_P)
+					mpt[i][y] = '?';
+				else
+					mpt[i][y] = ' ';
+			}
 			trykill(player1, i, y);
 			trykill(player2, i, y);
 			trykill(mob1, i, y);
 			trykill(mob2, i, y);
 		}
 		for (int i = x; i <= gamemap.userow() && i < x + power; ++i) {
-			if (!check(mpt[i][y])) break;
+			if (mpt[i][y] != '*' && !check(mpt[i][y])) break;
+			if (mpt[i][y] == '*'){
+				if ((rand() % 100) / 100.0 < BONUS_P)
+					mpt[i][y] = '?';
+				else
+					mpt[i][y] = ' ';
+			}
 			trykill(player1, i, y);
 			trykill(player2, i, y);
 			trykill(mob1, i, y);
 			trykill(mob2, i, y);
 		}
 		for (int i = y; i > 0 && i > y - power; --i) {
-			if (!check(mpt[x][i])) break;
+			if (mpt[x][i] != '*' && !check(mpt[x][i])) break;
+			if (mpt[x][i] == '*') {
+				if ((rand() % 100) / 100.0 < BONUS_P)
+					mpt[x][i] = '?';
+				else
+					mpt[x][i] = ' ';
+			}
 			trykill(player1, x, i);
 			trykill(player2, x, i);
 			trykill(mob1, x, i);
 			trykill(mob2, x, i);
 		}
 		for (int i = y; i < gamemap.usecol() && i < y + power; ++i) {
-			if (!check(mpt[x][i])) break;
+			if (mpt[x][i] != '*' && !check(mpt[x][i])) break;
+			if (mpt[x][i] == '*') {
+				if ((rand() % 100) / 100.0 < BONUS_P)
+					mpt[x][i] = '?';
+				else
+					mpt[x][i] = ' ';
+			}
 			trykill(player1, x, i);
 			trykill(player2, x, i);
 			trykill(mob1, x, i);

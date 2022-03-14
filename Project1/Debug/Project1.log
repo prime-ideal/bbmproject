@@ -1,5 +1,8 @@
 ﻿  main.cpp
-G:\bbmproject\Project1\main.cpp(282,47): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
-G:\bbmproject\Project1\main.cpp(287,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
-G:\bbmproject\Project1\main.cpp(288,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
+G:\bbmproject\Project1\main.cpp(20,26): warning C4305: 'initializing': truncation from 'double' to 'float'
+G:\bbmproject\Project1\main.cpp(122,46): warning C4390: ';': empty controlled statement found; is this the intent?
+G:\bbmproject\Project1\main.cpp(193,7): warning C4101: 'ch': unreferenced local variable
+G:\bbmproject\Project1\main.cpp(290,47): warning C4244: 'argument': conversion from '__int64' to 'int', possible loss of data
+G:\bbmproject\Project1\main.cpp(295,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
+G:\bbmproject\Project1\main.cpp(296,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
   Project1.vcxproj -> G:\bbmproject\Project1\Debug\Project1.exe
