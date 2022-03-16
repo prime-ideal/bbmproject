@@ -21,6 +21,7 @@ const float BONUS_P = 1;//出道具概率
 const float SPEEDUP_P = 0.5;//道具加速概率
 const float POWERUP_P = 0.5;//道具炸弹增幅概率
 const int effect_ticks = 20 * 20;
+const int INF = 0x3f3f3f3f;
 
 class map
 {
@@ -86,9 +87,11 @@ public:
 	bool operator<(const bomb& a) const{
 		return this->triggertime > a.triggertime; //小顶堆
 	}
-	int usetime() const{ return triggertime; }
+	long long usetime() const{ return triggertime; }
 	int usepower() const { return power; }
 	mob* usemobpt() const { return playerpt; }
+	int useposx() const { return posx; }
+	int useposy() const { return posy; }
 	bomb(mob* plerpt, int x, int y, int p, long long t) :
 		posx(x), posy(y), power(p), triggertime(t), playerpt(plerpt) {}
 };
@@ -99,6 +102,7 @@ void init(map&);
 void display();
 inline bool check(char ch);
 void deal_with_input();
+void deal_with_eventlist();
 void explode(const bomb& gamebomb);
 map gamemap(-1);
 mob player1(0,0), player2(0,0), 
@@ -108,11 +112,13 @@ mob player1(0,0), player2(0,0),
 int main()
 {
 	srand(clock());
-	/*int lev;
+	/*
+	int lev;
 	cout << "请输入关卡数：\n";
 	cin >> lev;
 	if (lev > MAX_LEVEL || lev <= 0)
 		lev = 1;
+	sleep(1000);
 	*/
 	gamemap = map(2);
 	init(gamemap);
@@ -122,22 +128,7 @@ int main()
 		clocktime = clock();
 		deal_with_input();
 		display();
-		while (!eventlist.empty() && eventlist.top().usetime() <= cnt) {
-			if (eventlist.top().usepower() > 0)
-				explode(eventlist.top());
-			else if (eventlist.top().usepower() == -1 && 
-				eventlist.top().usetime() >= eventlist.top().usemobpt()->usespeedtime()) {
-				eventlist.top().usemobpt()->setspeed(VELOCITY);
-
-			}
-			else if (eventlist.top().usepower() == -2 &&
-				eventlist.top().usetime() >= eventlist.top().usemobpt()->usepowertime()) {
-				eventlist.top().usemobpt()->setpower(2);
-			}
-			eventlist.pop();
-		}
-		while (clock() - clocktime <= TICK);
-		++cnt;
+		deal_with_eventlist();
 	}
 	return 0;
 }
@@ -193,6 +184,8 @@ void display()
 		for (int j = 1; j <= gamemap.usecol(); ++j) {
 			if (ppt[i][j])
 				cout << ppt[i][j];
+			else if (mpt[i][j] >= 'x')
+				cout << 'x';
 			else
 				cout << mpt[i][j];
 		}
@@ -222,7 +215,6 @@ void display()
 
 void deal_with_input()
 {
-	char ch;
 	if (_kbhit()) {
 		if (GetAsyncKeyState('W'))
 			player1.move_up();
@@ -244,7 +236,38 @@ void deal_with_input()
 			setbomb(&player1);
 		if (GetAsyncKeyState(VK_RETURN))
 			setbomb(&player2);
+		if (GetAsyncKeyState('1')) {//一键开挂
+			player1.sethp(INF);
+			player2.sethp(INF);
+		}
+		if (GetAsyncKeyState('2')) {//关闭外挂
+			player1.sethp(DEFAULTHP);
+			player2.sethp(DEFAULTHP);
+		}
 	}
+}
+void deal_with_eventlist() {
+	while (!eventlist.empty() && eventlist.top().usetime() <= cnt) {
+		if (eventlist.top().usepower() > 0)
+			explode(eventlist.top());
+		else if (eventlist.top().usepower() == -1 &&
+			eventlist.top().usetime() >= eventlist.top().usemobpt()->usespeedtime()) {
+			eventlist.top().usemobpt()->setspeed(VELOCITY);//速度提升
+		}
+		else if (eventlist.top().usepower() == -2 &&
+			eventlist.top().usetime() >= eventlist.top().usemobpt()->usepowertime()) {
+			eventlist.top().usemobpt()->setpower(2);//爆炸增幅
+		}
+		else if (eventlist.top().usepower() == -3) {
+			int x = eventlist.top().useposx();
+			int y = eventlist.top().useposy();
+			if (mpt[x][y] == 'x') mpt[x][y] = ' ';
+			if (mpt[x][y] > 'x') --mpt[x][y];
+		}
+		eventlist.pop();
+	}
+	while (clock() - clocktime <= TICK);
+	++cnt;
 }
 bool mob::move_up()
 {
@@ -308,7 +331,6 @@ bool mob::move_left()
 	}
 	else return 0;
 }
-//rewrite
 bool mob::move_down()
 {
 	if (hp <= 0) return 0;
@@ -372,7 +394,7 @@ bool mob::move_right()
 	else return 0;
 }
 inline bool check(char ch) {
-	if (ch == 'H' || ch == '*' || ch == 'o')
+	if (ch == 'H' || ch == '*' || ch == 'o' || ch >= 'x')
 		return 0;
 	return 1;
 }
@@ -391,51 +413,71 @@ void explode(const bomb& gamebomb)
 	if (power > 0) {
 		mpt[x][y] = ' ';
 		for (int i = x; i > 0 && i > x - power; --i) {
-			if (mpt[i][y] != '*' && !check(mpt[i][y])) break;
+			if (mpt[i][y] != '*' && !check(mpt[i][y]) && mpt[i][y] < 'x') break;
 			if (mpt[i][y] == '*'){
 				if ((rand() % 100) / 100.0 < BONUS_P)
 					mpt[i][y] = '?';
 				else
 					mpt[i][y] = ' ';
 			}
-			trykill(player1, i, y);
-			trykill(player2, i, y);
-			trykill(mob1, i, y);
-			trykill(mob2, i, y);
-		}
-		for (int i = x; i <= gamemap.userow() && i < x + power; ++i) {
-			if (mpt[i][y] != '*' && !check(mpt[i][y])) break;
-			if (mpt[i][y] == '*'){
-				if ((rand() % 100) / 100.0 < BONUS_P)
-					mpt[i][y] = '?';
-				else
-					mpt[i][y] = ' ';
+			if (mpt[i][y] != '?') {
+				if (mpt[i][y] < 'x') mpt[i][y] = 'x';
+				else ++mpt[i][y];
+				eventlist.push(bomb(&player1, i, y, -3, cnt + 20));//火焰1秒
 			}
 			trykill(player1, i, y);
 			trykill(player2, i, y);
 			trykill(mob1, i, y);
 			trykill(mob2, i, y);
 		}
-		for (int i = y; i > 0 && i > y - power; --i) {
-			if (mpt[x][i] != '*' && !check(mpt[x][i])) break;
+		for (int i = x + 1; i <= gamemap.userow() && i < x + power; ++i) {
+			if (mpt[i][y] != '*' && !check(mpt[i][y]) && mpt[i][y] < 'x') break;
+			if (mpt[i][y] == '*'){
+				if ((rand() % 100) / 100.0 < BONUS_P)
+					mpt[i][y] = '?';
+				else
+					mpt[i][y] = ' ';
+			}
+			if (mpt[i][y] != '?') {
+				if (mpt[i][y] < 'x') mpt[i][y] = 'x';
+				else ++mpt[i][y];
+				eventlist.push(bomb(&player1, i, y, -3, cnt + 20));
+			}
+			trykill(player1, i, y);
+			trykill(player2, i, y);
+			trykill(mob1, i, y);
+			trykill(mob2, i, y);
+		}
+		for (int i = y - 1; i > 0 && i > y - power; --i) {
+			if (mpt[x][i] != '*' && !check(mpt[x][i]) && mpt[x][i] < 'x') break;
 			if (mpt[x][i] == '*') {
 				if ((rand() % 100) / 100.0 < BONUS_P)
 					mpt[x][i] = '?';
 				else
 					mpt[x][i] = ' ';
+			}
+			if (mpt[x][i] != '?') {
+				if (mpt[x][i] < 'x') mpt[x][i] = 'x';
+				else ++mpt[x][i];
+				eventlist.push(bomb(&player1, x, i, -3, cnt + 20));
 			}
 			trykill(player1, x, i);
 			trykill(player2, x, i);
 			trykill(mob1, x, i);
 			trykill(mob2, x, i);
 		}
-		for (int i = y; i < gamemap.usecol() && i < y + power; ++i) {
-			if (mpt[x][i] != '*' && !check(mpt[x][i])) break;
+		for (int i = y + 1; i < gamemap.usecol() && i < y + power; ++i) {
+			if (mpt[x][i] != '*' && !check(mpt[x][i]) && mpt[x][i] < 'x') break;
 			if (mpt[x][i] == '*') {
 				if ((rand() % 100) / 100.0 < BONUS_P)
 					mpt[x][i] = '?';
 				else
 					mpt[x][i] = ' ';
+			}
+			if (mpt[x][i] != '?') {
+				if (mpt[x][i] < 'x') mpt[x][i] = 'x';
+				else ++mpt[x][i];
+				eventlist.push(bomb(&player1, x, i, -3, cnt + 20));
 			}
 			trykill(player1, x, i);
 			trykill(player2, x, i);
