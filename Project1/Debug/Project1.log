@@ -1,8 +1,8 @@
 ﻿  main.cpp
-G:\bbmproject\Project1\main.cpp(286,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-G:\bbmproject\Project1\main.cpp(317,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-G:\bbmproject\Project1\main.cpp(348,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-G:\bbmproject\Project1\main.cpp(379,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-G:\bbmproject\Project1\main.cpp(411,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
-G:\bbmproject\Project1\main.cpp(412,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
+G:\bbmproject\Project1\main.cpp(321,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\bbmproject\Project1\main.cpp(354,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\bbmproject\Project1\main.cpp(387,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\bbmproject\Project1\main.cpp(420,21): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+G:\bbmproject\Project1\main.cpp(456,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
+G:\bbmproject\Project1\main.cpp(457,26): warning C4228: nonstandard extension used: qualifiers after comma in declarator list are ignored
   Project1.vcxproj -> G:\bbmproject\Project1\Debug\Project1.exe
